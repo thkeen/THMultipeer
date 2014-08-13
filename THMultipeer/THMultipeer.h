@@ -17,7 +17,7 @@
  *  @param info NSDictionary: invitation context
  *  @param peer MCPeerID
  */
-- (void)multipeerDidReceiveInfo:(NSDictionary*)info fromPeer:(MCPeerID*)peer;
+- (void)multipeerDidReceiveInfo:(NSDictionary*)info fromPeer:(MCPeerID*)peerID;
 /**
  *  All found peers were removed, update UI now
  */
@@ -30,14 +30,14 @@
  *  @param info  Other info if any
  *  @param index Insert to the appropriate index in the UI
  */
-- (void)multipeerNewPeerFound:(MCPeerID*)peer withName:(NSString*)name andInfo:(NSDictionary*)info atIndex:(NSUInteger)index;
+- (void)multipeerNewPeerFound:(MCPeerID*)peerID withName:(NSString*)name andInfo:(NSDictionary*)info atIndex:(NSUInteger)index;
 /**
  *  Lost a peer, remove from UI
  *
  *  @param peer  MCPeerID
  *  @param index Index to remove
  */
-- (void)multipeerPeerLost:(MCPeerID*)peer atIndex:(NSUInteger)index;
+- (void)multipeerPeerLost:(MCPeerID*)peerID atIndex:(NSUInteger)index;
 /**
  *  Could not advertising or browsing
  *
@@ -64,12 +64,14 @@
 
 /**
  *  Name of device that will be visible to others.
- *  By default is device name, if set to another will be saved in NSUserDefaults
+ *  By default is device name, if set to another will be saved in NSUserDefaults.
+    Note: You must not set name after the device already broadcasts. Stop broadcasting first then set the name.
  */
 @property (nonatomic, strong) NSString *name;
 
 /**
- *  Whatever discovery information you want to inform other peers when advertising
+ *  Whatever discovery information you want to inform other peers when advertising.
+    Note: You must not set info after the device already broadcasts. Stop broadcasting first then set the info.
  */
 @property (nonatomic, strong) NSDictionary *info;
 
@@ -89,7 +91,7 @@
  *  @param info NSDictionary
  *  @param peer MCPeerID
  */
-- (void)sendInfo:(NSDictionary*)info toPeer:(MCPeerID*)peer;
+- (void)sendInfo:(NSDictionary*)info toPeer:(MCPeerID*)peerID;
 
 /**
  *  Send a dictionary to all peers found without having to connect to the same session
@@ -98,5 +100,21 @@
  *  @param peer MCPeerID
  */
 - (void)sendInfoToAllPeers:(NSDictionary*)info;
+/**
+ *  Get the display name of the peer
+ *
+ *  @param peer MCPeerID
+ *
+ *  @return NSString: Display name
+ */
+- (NSString*)nameForPeer:(MCPeerID*)peerID;
+/**
+ *  Get extra info of the peer (if any)
+ *
+ *  @param peer MCPeerID
+ *
+ *  @return NSDictionary
+ */
+- (NSDictionary*)infoForPeer:(MCPeerID*)peerID;
 
 @end

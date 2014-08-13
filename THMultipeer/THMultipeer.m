@@ -31,6 +31,7 @@
 
 @interface THMultipeer () <MCNearbyServiceBrowserDelegate, MCNearbyServiceAdvertiserDelegate>
 @property (nonatomic, strong, readwrite) NSMutableArray *peers; // readwrite
+@property (nonatomic, strong, readwrite) NSMutableDictionary *peersForIdentifier; // keep this in sync with self.peers for performance
 @property (nonatomic, strong, readwrite) NSMutableDictionary *peerInfos; // readwrite
 @property (nonatomic, strong) MCPeerID *myPeerID;
 @property (nonatomic, strong) MCNearbyServiceAdvertiser *advertiser;
@@ -54,6 +55,7 @@
     self = [super init];
     if (self) {
         self.peers = [NSMutableArray array];
+        self.peersForIdentifier = [NSMutableDictionary dictionary];
         self.peerInfos = [NSMutableDictionary dictionary];
         self.myPeerID = [[MCPeerID alloc] initWithDisplayName:[[[UIDevice currentDevice] identifierForVendor] UUIDString]]; // prefix will always be UUID
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(applicationWillEnterForeground) name:UIApplicationWillEnterForegroundNotification object:nil];
@@ -65,6 +67,8 @@
 - (void)dealloc {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
+
+#pragma mark - Properties
 
 - (NSString *)name {
     if (!_name) {
@@ -78,15 +82,34 @@
     return _name;
 }
 - (void)setName:(NSString *)name {
-    [[NSUserDefaults standardUserDefaults] setObject:name forKey:@"multipeer_display_name"];
-    [[NSUserDefaults standardUserDefaults] synchronize];
-    _name = name;
+    // can only set name if not broadcasting
+    if (!self.advertiser) {
+        [[NSUserDefaults standardUserDefaults] setObject:name forKey:@"multipeer_display_name"];
+        [[NSUserDefaults standardUserDefaults] synchronize];
+        _name = name;
+    } else {
+        NSAssert(YES, @"THMultipeer exception: Please stop broadcasting before setting name.");
+    }
 }
+- (void)setInfo:(NSDictionary *)info {
+    // can only set info if not broadcasting
+    if (!self.advertiser) {
+        _info = info;
+    } else {
+        NSAssert(YES, @"THMultipeer exception: Please stop broadcasting before setting info.");
+    }
+}
+
+#pragma mark - Private methods
+
+#pragma mark - Public methods
 
 - (void)broadcast {
     if (self.serviceType.length > 0) {
         self.advertiser = [[MCNearbyServiceAdvertiser alloc] initWithPeer:self.myPeerID discoveryInfo:@{@"name": self.name, @"info": self.info ? self.info : @{}} serviceType:self.serviceType];
+        self.advertiser.delegate = self;
         self.browser = [[MCNearbyServiceBrowser alloc] initWithPeer:self.myPeerID serviceType:self.serviceType];
+        self.browser.delegate = self;
         [self.advertiser startAdvertisingPeer];
         [self.browser startBrowsingForPeers];
     } else {
@@ -98,17 +121,75 @@
     [self.browser stopBrowsingForPeers];
     [self.advertiser stopAdvertisingPeer];
     [self.peers removeAllObjects];
+    [self.peersForIdentifier removeAllObjects];
+    [self.peerInfos removeAllObjects]; // should I remove this?
     [self.delegate multipeerAllPeersRemoved];
+    self.browser = nil;
+    self.advertiser = nil;
 }
 
-- (void)sendInfo:(NSDictionary *)info toPeer:(MCPeerID *)peer {
-    [self.browser invitePeer:peer toSession:nil withContext:[NSData dataWithDictionary:info] timeout:10];
+- (void)sendInfo:(NSDictionary *)info toPeer:(MCPeerID *)peerID {
+    [self.browser invitePeer:peerID toSession:nil withContext:[NSData dataWithDictionary:info] timeout:10];
 }
 
 - (void)sendInfoToAllPeers:(NSDictionary *)info {
     for (MCPeerID *peer in self.peers) {
         [self sendInfo:info toPeer:peer];
     }
+}
+
+- (NSString *)nameForPeer:(MCPeerID *)peerID {
+    return [[self.peerInfos objectForKey:peerID.displayName] objectForKey:@"name"];
+}
+
+- (NSDictionary *)infoForPeer:(MCPeerID *)peerID {
+    return [[self.peerInfos objectForKey:peerID.displayName] objectForKey:@"info"];
+}
+
+#pragma mark - MCNearbyServiceBrowserDelegate
+
+// Found a nearby advertising peer
+- (void)browser:(MCNearbyServiceBrowser *)browser foundPeer:(MCPeerID *)peerID withDiscoveryInfo:(NSDictionary *)info {
+    if ([self.peersForIdentifier objectForKey:peerID.displayName]) {
+        // this means this UUID was added before, somehow it appears again. Let's delete the old one and overwrite with this new one
+        MCPeerID *existedPeerID = [self.peersForIdentifier objectForKey:peerID.displayName];
+        [self.peers setObject:peerID atIndexedSubscript:[self.peers indexOfObject:existedPeerID]];
+    } else {
+        // new one added in and tell the delegate to update UI
+        [self.peers insertObject:peerID atIndex:0];
+        [self.delegate multipeerNewPeerFound:peerID withName:[info objectForKey:@"name"] andInfo:[info objectForKey:@"info"] atIndex:0];
+    }
+    [self.peersForIdentifier setObject:peerID forKey:peerID.displayName];
+    if (info) {
+        [self.peerInfos setObject:info forKey:peerID.displayName];
+    }
+}
+
+// A nearby peer has stopped advertising
+- (void)browser:(MCNearbyServiceBrowser *)browser lostPeer:(MCPeerID *)peerID {
+    if ([self.peersForIdentifier objectForKey:peerID.displayName]) {
+        MCPeerID *existedPeerID = [self.peersForIdentifier objectForKey:peerID.displayName];
+        [self.peers removeObjectAtIndex:[self.peers indexOfObject:existedPeerID]];
+        [self.peersForIdentifier removeObjectForKey:peerID.displayName];
+        [self.peerInfos removeObjectForKey:peerID.displayName];
+    }
+}
+
+// Browsing did not start due to an error
+- (void)browser:(MCNearbyServiceBrowser *)browser didNotStartBrowsingForPeers:(NSError *)error {
+    [self.delegate multipeerDidNotBroadcastWithError:error];
+}
+
+#pragma mark - MCNearbyServiceAdvertiserDelegate
+
+// Incoming invitation request.  Call the invitationHandler block with YES and a valid session to connect the inviting peer to the session.
+- (void)advertiser:(MCNearbyServiceAdvertiser *)advertiser didReceiveInvitationFromPeer:(MCPeerID *)peerID withContext:(NSData *)context invitationHandler:(void(^)(BOOL accept, MCSession *session))invitationHandler {
+    [self.delegate multipeerDidReceiveInfo:[NSData dictionaryFromData:context] fromPeer:peerID];
+}
+
+// Advertising did not start due to an error
+- (void)advertiser:(MCNearbyServiceAdvertiser *)advertiser didNotStartAdvertisingPeer:(NSError *)error {
+    [self.delegate multipeerDidNotBroadcastWithError:error];
 }
 
 #pragma mark - NSNotificationCenter
