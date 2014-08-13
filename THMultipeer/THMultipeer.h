@@ -22,14 +22,14 @@
  *  @param info  Other info if any
  *  @param index Insert to the appropriate index in the UI
  */
-- (void)multipeerNewPeerFound:(MCPeerID*)peerID withName:(NSString*)name andInfo:(NSDictionary*)info atIndex:(NSUInteger)index;
+- (void)multipeerNewPeerFound:(MCPeerID*)peerID withName:(NSString*)name andInfo:(NSDictionary*)info atIndex:(NSInteger)index;
 /**
  *  Lost a peer, remove from UI
  *
  *  @param peer  MCPeerID
  *  @param index Index to remove
  */
-- (void)multipeerPeerLost:(MCPeerID*)peerID atIndex:(NSUInteger)index;
+- (void)multipeerPeerLost:(MCPeerID*)peerID atIndex:(NSInteger)index;
 /**
  *  All found peers were removed, update UI now
  */
