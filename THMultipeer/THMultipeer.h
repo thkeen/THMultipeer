@@ -9,19 +9,11 @@
 #import <Foundation/Foundation.h>
 
 @class MCPeerID;
+@class THMultipeerSession;
 
 @protocol THMultipeerDelegate <NSObject>
-/**
- *  Got an invitation from other peer
- *
- *  @param info NSDictionary: invitation context
- *  @param peer MCPeerID
- */
-- (void)multipeerDidReceiveInfo:(NSDictionary*)info fromPeer:(MCPeerID*)peerID;
-/**
- *  All found peers were removed, update UI now
- */
-- (void)multipeerAllPeersRemoved;
+
+@optional
 /**
  *  New peer found, insert to UI
  *
@@ -39,11 +31,31 @@
  */
 - (void)multipeerPeerLost:(MCPeerID*)peerID atIndex:(NSUInteger)index;
 /**
+ *  All found peers were removed, update UI now
+ */
+- (void)multipeerAllPeersRemoved;
+/**
  *  Could not advertising or browsing
  *
  *  @param error
  */
 - (void)multipeerDidNotBroadcastWithError:(NSError*)error;
+/**
+ *  This is actually a wrapper on didReceiveInvitation but we make use of it as a protocol for sending simple message without having to accept the invitation.
+ *
+ *  @param info NSDictionary: invitation context
+ *  @param peer MCPeerID
+ */
+- (void)multipeerDidReceiveInfo:(NSDictionary*)info fromPeer:(MCPeerID*)peerID;
+/**
+ *  Receive a real invitation
+ *
+ *  @param invitationInfo NSDictionary
+ *  @param peerID         MCPeerID
+ *  @param sessionID      UUID for the session to make sure the UI can distinguish different sessions. Because when a connection drops, a new session needs to be created again and this sessionID won't change.
+ */
+- (void)multipeerDidReceiveInvitation:(NSDictionary*)invitationInfo fromPeer:(MCPeerID*)peerID withSessionID:(NSString*)sessionID;
+
 @end
 
 @interface THMultipeer : NSObject
@@ -53,6 +65,7 @@
 @property (nonatomic, strong) id<THMultipeerDelegate> delegate;
 @property (nonatomic, strong, readonly) NSMutableArray *peers;
 @property (nonatomic, strong, readonly) NSMutableDictionary *peerInfos;
+@property (nonatomic, strong, readonly) NSMutableArray *sessions;
 
 /**
  *  The type of service to advertise. This should be a short text string that describes the app's networking protocol, in the same format as a Bonjour service type:
@@ -116,5 +129,13 @@
  *  @return NSDictionary
  */
 - (NSDictionary*)infoForPeer:(MCPeerID*)peerID;
+/**
+ *  Create a new special session which will never die unless user chooses to quit. Invite everyone in and the special session itself will maintain the connection for you
+ *
+ *  @param peers MCPeerID list of peers you want to invite
+ *
+ *  @return New Session
+ */
+- (THMultipeerSession*)invitePeersToNewSession:(NSArray*)peers;
 
 @end

@@ -33,6 +33,7 @@
 @property (nonatomic, strong, readwrite) NSMutableArray *peers; // readwrite
 @property (nonatomic, strong, readwrite) NSMutableDictionary *peersForIdentifier; // keep this in sync with self.peers for performance
 @property (nonatomic, strong, readwrite) NSMutableDictionary *peerInfos; // readwrite
+@property (nonatomic, strong, readwrite) NSMutableArray *sessions; // readwrite
 @property (nonatomic, strong) MCPeerID *myPeerID;
 @property (nonatomic, strong) MCNearbyServiceAdvertiser *advertiser;
 @property (nonatomic, strong) MCNearbyServiceBrowser *browser;
@@ -129,7 +130,7 @@
 }
 
 - (void)sendInfo:(NSDictionary *)info toPeer:(MCPeerID *)peerID {
-    [self.browser invitePeer:peerID toSession:nil withContext:[NSData dataWithDictionary:info] timeout:10];
+    [self.browser invitePeer:peerID toSession:nil withContext:[NSData dataWithDictionary:@{@"type": @"info", @"info": info ? info : @{}}] timeout:10];
 }
 
 - (void)sendInfoToAllPeers:(NSDictionary *)info {
@@ -184,7 +185,13 @@
 
 // Incoming invitation request.  Call the invitationHandler block with YES and a valid session to connect the inviting peer to the session.
 - (void)advertiser:(MCNearbyServiceAdvertiser *)advertiser didReceiveInvitationFromPeer:(MCPeerID *)peerID withContext:(NSData *)context invitationHandler:(void(^)(BOOL accept, MCSession *session))invitationHandler {
-    [self.delegate multipeerDidReceiveInfo:[NSData dictionaryFromData:context] fromPeer:peerID];
+    NSDictionary *info = [NSData dictionaryFromData:context];
+    if ([info objectForKey:@"type"] && [[info objectForKey:@"type"] isEqualToString:@"info"]) {
+        [self.delegate multipeerDidReceiveInfo:[info objectForKey:@"info"] fromPeer:peerID];
+    } else {
+        // real invitation, create UUID for session here
+        
+    }
 }
 
 // Advertising did not start due to an error
