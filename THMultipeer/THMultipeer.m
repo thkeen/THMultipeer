@@ -7,33 +7,15 @@
 //
 
 #import "THMultipeer.h"
-#import <MultipeerConnectivity/MultipeerConnectivity.h>
-
-@interface NSData (Helpers)
-+ (NSData*)dataWithDictionary:(NSDictionary*)dictionary;
-+ (NSDictionary*)dictionaryFromData:(NSData*)data;
-@end
-@implementation NSData (Helpers)
-+ (NSData *)dataWithDictionary:(NSDictionary *)dictionary {
-    NSMutableData *data = [[NSMutableData alloc] init];
-    NSKeyedArchiver *archiver = [[NSKeyedArchiver alloc] initForWritingWithMutableData:data];
-    [archiver encodeObject:dictionary forKey:@"dictionary"];
-    [archiver finishEncoding];
-    return data;
-}
-+ (NSDictionary *)dictionaryFromData:(NSData *)data {
-    NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingWithData:data];
-    NSDictionary *dictionary = [unarchiver decodeObjectForKey:@"dictionary"];
-    [unarchiver finishDecoding];
-    return dictionary;
-}
-@end
+#import "THMultipeerSession.h"
+#import "NSData+Helpers.h"
 
 @interface THMultipeer () <MCNearbyServiceBrowserDelegate, MCNearbyServiceAdvertiserDelegate>
 @property (nonatomic, strong, readwrite) NSMutableArray *peers; // readwrite
 @property (nonatomic, strong, readwrite) NSMutableDictionary *peersForIdentifier; // keep this in sync with self.peers for performance
 @property (nonatomic, strong, readwrite) NSMutableDictionary *peerInfos; // readwrite
 @property (nonatomic, strong, readwrite) NSMutableArray *sessions; // readwrite
+@property (nonatomic, strong, readwrite) NSMutableDictionary *sessionsForIdentifier; // keep this in sync with self.sessions for performance
 @property (nonatomic, strong) MCPeerID *myPeerID;
 @property (nonatomic, strong) MCNearbyServiceAdvertiser *advertiser;
 @property (nonatomic, strong) MCNearbyServiceBrowser *browser;
@@ -58,6 +40,8 @@
         self.peers = [NSMutableArray array];
         self.peersForIdentifier = [NSMutableDictionary dictionary];
         self.peerInfos = [NSMutableDictionary dictionary];
+        self.sessions = [NSMutableArray array];
+        self.sessionsForIdentifier = [NSMutableDictionary dictionary];
         self.myPeerID = [[MCPeerID alloc] initWithDisplayName:[[[UIDevice currentDevice] identifierForVendor] UUIDString]]; // prefix will always be UUID
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(applicationWillEnterForeground) name:UIApplicationWillEnterForegroundNotification object:nil];
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(applicationDidEnterBackground) name:UIApplicationDidEnterBackgroundNotification object:nil];
@@ -206,10 +190,27 @@
         if ([self.delegate respondsToSelector:@selector(multipeerDidReceiveInfo:fromPeer:)]) {
             [self.delegate multipeerDidReceiveInfo:[info objectForKey:@"info"] fromPeer:peerID];
         }
-//        invitationHandler(NO, nil);
+        invitationHandler(NO, nil); // no need to accept this, no point
     } else {
         // real invitation, create UUID for session here
-        
+        NSString *sessionID = [info objectForKey:@"sessionID"];
+        if (sessionID.length > 0) {
+            THMultipeerSession *session = [self.sessionsForIdentifier objectForKey:sessionID];
+            if (!session) {
+                // first time got the invitation. Otherwise it would've been already in the cache
+                session = [[THMultipeerSession alloc] initWithInfo:info localPeer:self.myPeerID browser:self.browser];
+                [self.sessionsForIdentifier setObject:session forKey:sessionID];
+                [self.sessions insertObject:session atIndex:0];
+                if ([self.delegate respondsToSelector:@selector(multipeerSessionPeerAdded:atIndex:)]) {
+                    [self.delegate multipeerSessionAdded:session atIndex:0];
+                }
+            } else {
+                // redundant invitation, what to do?
+                
+            }
+        } else {
+            NSLog(@"Session ID not found. Ignore invitation.");
+        }
     }
 }
 

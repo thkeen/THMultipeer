@@ -7,36 +7,67 @@
 //
 
 #import "THMultipeerSession.h"
+#import "NSData+Helpers.h"
 
-@interface THMultipeerSession()
+@interface THMultipeerSession() <MCSessionDelegate>
+@property (nonatomic, strong, readwrite) NSString *sessionID;
 @property (nonatomic, strong, readwrite) NSMutableArray *peers;
+@property (nonatomic, strong) MCSession *session;
+@property (nonatomic, copy) void(^invitationHandler)(BOOL accept, MCSession *session);
+
+- (instancetype)initWithLocalPeerID:(MCPeerID*)localPeerID browser:(MCNearbyServiceBrowser*)browser;
 @end
 
 @implementation THMultipeerSession
 
-- (instancetype)initAsPeer:(MCPeerID*)localPeerID withSessionID:(NSString*)sessionID {
-    self = [super init];
+- (instancetype)initWithInfo:(NSDictionary*)info localPeer:(MCPeerID*)localPeerID browser:(MCNearbyServiceBrowser*)browser {
+    self = [self initWithLocalPeerID:localPeerID browser:browser];
     if (self) {
-        self.sessionID = sessionID;
-        self.session = [[MCSession alloc] initWithPeer:localPeerID];
-        self.session.delegate = self;
-        self.type = THMultipeerSessionIsPeer;
+        self.sessionID = [info objectForKey:@"sessionID"];
     }
     return self;
 }
 
-- (instancetype)initAsHost:(MCPeerID*)localPeerID withPeers:(NSArray*)peers {
-    self = [super init];
+- (instancetype)init:(MCPeerID*)localPeerID browser:(MCNearbyServiceBrowser*)browser {
+    self = [self initWithLocalPeerID:localPeerID browser:browser];
     if (self) {
         self.sessionID = [[NSUUID UUID] UUIDString];
-        self.session = [[MCSession alloc] initWithPeer:localPeerID];
-        self.session.delegate = self;
-        self.type = THMultipeerSessionIsHost;
     }
     return self;
 }
 
+- (instancetype)initWithLocalPeerID:(MCPeerID*)localPeerID browser:(MCNearbyServiceBrowser*)browser{
+    self = [super init];
+    if (self) {
+        self.session = [[MCSession alloc] initWithPeer:localPeerID];
+        self.session.delegate = self;
+    }
+    return self;
+}
 
+#pragma mark - Public methods
+
+- (void)invitePeers:(NSArray *)peerIDs withInfo:(NSDictionary*)info {
+    if (self.browser) {
+        for (MCPeerID *peerID in peerIDs) {
+            [self.browser invitePeer:peerID toSession:self.session withContext:[NSData dataWithDictionary:@{@"sessionID": self.sessionID, @"info": info ? info : @{}}] timeout:10];
+        }
+    } else {
+        NSAssert(YES, @"THMultipeer Exception: Browser must not be nil in order to invite.");
+    }
+}
+
+- (void)sendInfoToPeers:(NSDictionary *)info {
+    NSError *error;
+    [self.session sendData:[NSData dataWithDictionary:info] toPeers:self.peers withMode:MCSessionSendDataReliable error:&error];
+    if (error) {
+        NSLog(@"Error when sending info to peers: %@",error);
+    }
+}
+
+- (void)disconnect {
+    [self.session disconnect];
+}
 
 #pragma mark - MCSessionDelegate
 

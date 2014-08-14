@@ -6,9 +6,8 @@
 //  Copyright (c) 2014 Thkeen. All rights reserved.
 //
 
-#import <Foundation/Foundation.h>
+#import <MultipeerConnectivity/MultipeerConnectivity.h>
 
-@class MCPeerID;
 @class THMultipeerSession;
 
 @protocol THMultipeerDelegate <NSObject>
@@ -47,15 +46,10 @@
  *  @param peer MCPeerID
  */
 - (void)multipeerDidReceiveInfo:(NSDictionary*)info fromPeer:(MCPeerID*)peerID;
-/**
- *  Receive a real invitation
- *
- *  @param invitationInfo NSDictionary
- *  @param peerID         MCPeerID
- *  @param sessionID      UUID for the session to make sure the UI can distinguish different sessions. Because when a connection drops, a new session needs to be created again and this sessionID won't change.
- */
-- (void)multipeerDidReceiveInvitation:(NSDictionary*)invitationInfo fromPeer:(MCPeerID*)peerID withSessionID:(NSString*)sessionID;
-
+- (void)multipeerSessionAdded:(THMultipeerSession*)session atIndex:(NSInteger)index;
+- (void)multipeerSessionRemoved:(THMultipeerSession*)session atIndex:(NSInteger)index;
+- (void)multipeerSession:(THMultipeerSession*)session didReceiveInfo:(NSDictionary*)info fromPeer:(MCPeerID*)peerID;
+- (void)multipeerSession:(THMultipeerSession*)session peer:(MCPeerID*)peerID didChangeState:(MCSessionState)state;
 @end
 
 @interface THMultipeer : NSObject
