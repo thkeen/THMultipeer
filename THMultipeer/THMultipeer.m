@@ -93,6 +93,7 @@
 
 - (void)broadcast {
     if (self.serviceType.length > 0) {
+        NSLog(@"startBroadcasting");
         self.advertiser = [[MCNearbyServiceAdvertiser alloc] initWithPeer:self.myPeerID discoveryInfo:self.info serviceType:self.serviceType];
         self.advertiser.delegate = self;
         self.browser = [[MCNearbyServiceBrowser alloc] initWithPeer:self.myPeerID serviceType:self.serviceType];
@@ -105,8 +106,11 @@
 }
 
 - (void)stopBroadcasting {
+    NSLog(@"stopBroadcasting");
     [self.browser stopBrowsingForPeers];
     [self.advertiser stopAdvertisingPeer];
+    self.browser.delegate = nil;
+    self.advertiser.delegate = nil;
     [self.peers removeAllObjects];
     [self.peersForIdentifier removeAllObjects];
     [self.peerInfos removeAllObjects]; // should I remove this?
