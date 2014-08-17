@@ -1,5 +1,6 @@
 THMultipeer
 ===========
+## Nearby connectivity library for iOS 7 (bluetooth or wifi)
 THMultpeer is a wrapper on top of Apple iOS Multipeer Connectivity framework. It provides an easier way to create and manage sessions. It will save you time for handling disconnection and already has a mechanism to identify peers by setting displayName to be the device identifierForVendor (UUID String). Thus there will be no conflict if two devices having the same name.
 
 ## How to use
@@ -17,7 +18,7 @@ THMultipeer.me().broadcast()
  *  @param peer  MCPeerID
  *  @param name  Device name that was put during the advertisement
  *  @param info  Other info if any
- *  @param index Insert to the appropriate index in the UI
+ *  @param index Insert to the appropriate index in the UIwwd
  */
 - (void)multipeerNewPeerFound:(MCPeerID*)peerID withName:(NSString*)name andInfo:(NSDictionary*)info atIndex:(NSInteger)index;
 /**
