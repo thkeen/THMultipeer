@@ -124,6 +124,14 @@
  */
 - (NSDictionary*)infoForPeer:(MCPeerID*)peerID;
 /**
+ *  get index of peer in array
+ *
+ *  @param peerID MCPeerID
+ *
+ *  @return NSInteger
+ */
+- (NSInteger)indexOfPeer:(MCPeerID*)peerID;
+/**
  *  Create a new special session which will never die unless user chooses to quit. Invite everyone in and the special session itself will maintain the connection for you
  *
  *  @param peers MCPeerID list of peers you want to invite

@@ -139,6 +139,10 @@
     return [self.peerInfos objectForKey:peerID.displayName];
 }
 
+- (NSInteger)indexOfPeer:(MCPeerID *)peerID {
+    return [self.peers indexOfObject:peerID];
+}
+
 #pragma mark - MCNearbyServiceBrowserDelegate
 
 // Found a nearby advertising peer
