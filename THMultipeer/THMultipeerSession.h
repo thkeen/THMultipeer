@@ -48,6 +48,5 @@
 - (void)invitePeers:(NSArray*)peerIDs withInfo:(NSDictionary*)info;
 - (void)sendInfoToPeers:(NSDictionary*)info;
 - (void)disconnect;
-- (void)acceptInvitation;
 
 @end

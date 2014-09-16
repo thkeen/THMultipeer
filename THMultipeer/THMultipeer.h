@@ -138,6 +138,6 @@
  *
  *  @return New Session
  */
-- (THMultipeerSession*)invitePeersToNewSession:(NSArray*)peers;
+//- (THMultipeerSession*)invitePeersToNewSession:(NSArray*)peers;
 
 @end
